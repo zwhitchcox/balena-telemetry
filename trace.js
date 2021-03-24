@@ -1,6 +1,6 @@
 'use strict';
 // track async ids
-const store = new WeakMap()
+const store = new Map()
 const ah = require('async_hooks')
 ah.createHook({ init(asyncId, type, triggerAsyncId) {
   if (store.has(triggerAsyncId)) {
@@ -24,7 +24,7 @@ const tracer = opentelemetry.trace.getTracer('async-hooks-tracer');
 const {executionAsyncId} = require('async_hooks')
 const fns1 = require('./lib1')
 const fns2 = require('./lib2')
-const shimmer = require('shimmer')
+const shimmer = require('shimmer');
 const wrapFn = (mod, name) => {
   shimmer.wrap(mod, name, function(original) {
     return function() {
@@ -35,6 +35,7 @@ const wrapFn = (mod, name) => {
         span = tracer.startSpan(name, undefined, ctx)
       } else {
         span = tracer.startSpan(name)
+        store.set(executionAsyncId(), span)
       }
       const result = original.apply(this, arguments)
       span.end()
@@ -43,8 +44,9 @@ const wrapFn = (mod, name) => {
   })
 }
 
-wrapFn(fns1, 'fn1')
-wrapFn(fns1, 'fn2')
+// wrapFn(fns1, 'fn1')
+// wrapFn(fns1, 'fn2')
+wrapAll(fns1)
 wrapAll(fns2)
 
 function wrapAll (mod) {
