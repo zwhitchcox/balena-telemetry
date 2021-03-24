@@ -1,22 +1,23 @@
-'use strict';
+import * as opentelemetry from '@opentelemetry/api'
+import {
+  BasicTracerProvider,
+  ConsoleSpanExporter,
+  SimpleSpanProcessor
+} from '@opentelemetry/tracing'
+import * as ah from 'async_hooks'
+
 // track async ids
 const store = new Map()
-const ah = require('async_hooks')
-const fs = require('fs')
+const ids = new WeakMap()
 ah.createHook({ init(asyncId, type, triggerAsyncId) {
   if (store.has(triggerAsyncId)) {
-    // fs.writeSync(1, asyncId+'\n')
+    const span = store.get(triggerAsyncId)
     store.set(asyncId, store.get(triggerAsyncId))
+    ids.set(span, ids.get(span).concat(asyncId))
   }
 } }).enable()
 
 // set up telemetry processor
-const opentelemetry = require('@opentelemetry/api');
-const {
-  BasicTracerProvider,
-  ConsoleSpanExporter,
-  SimpleSpanProcessor
-} = require('@opentelemetry/tracing');
 const provider = new BasicTracerProvider();
 provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
 provider.register();
@@ -29,17 +30,22 @@ const fns2 = require('./lib2')
 const shimmer = require('shimmer');
 const wrapFn = (mod, name) => {
   shimmer.wrap(mod, name, function(original) {
-    return function() {
+    return function(this: any) {
       const parentSpan = store.get(executionAsyncId())
       let span;
       if (parentSpan) {
-        const ctx = opentelemetry.setSpan(opentelemetry.context.active(), parentSpan)
+        const ctx = opentelemetry
+          .setSpan(opentelemetry.context.active(), parentSpan)
         span = tracer.startSpan(name, undefined, ctx)
       } else {
         span = tracer.startSpan(name)
+        ids.set(span, [])
         store.set(executionAsyncId(), span)
       }
       const result = original.apply(this, arguments)
+      for (const id of ids.get(span) || []) {
+        store.delete(id)
+      }
       span.end()
       return result
     }

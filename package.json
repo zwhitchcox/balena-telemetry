@@ -11,6 +11,7 @@
     "@opentelemetry/node": "^0.18.0",
     "@opentelemetry/plugin-http": "^0.18.0",
     "@opentelemetry/tracing": "^0.18.0",
+    "@types/node": "^14.14.35",
     "shimmer": "^1.2.1"
   },
   "devDependencies": {
