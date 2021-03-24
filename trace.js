@@ -2,8 +2,10 @@
 // track async ids
 const store = new Map()
 const ah = require('async_hooks')
+const fs = require('fs')
 ah.createHook({ init(asyncId, type, triggerAsyncId) {
   if (store.has(triggerAsyncId)) {
+    // fs.writeSync(1, asyncId+'\n')
     store.set(asyncId, store.get(triggerAsyncId))
   }
 } }).enable()
@@ -28,10 +30,10 @@ const shimmer = require('shimmer');
 const wrapFn = (mod, name) => {
   shimmer.wrap(mod, name, function(original) {
     return function() {
-      const parentSpan = store.get(executionAsyncId)
+      const parentSpan = store.get(executionAsyncId())
       let span;
       if (parentSpan) {
-        const ctx = opentelemetry.setspan(opentelemetry.context.active(), parent)
+        const ctx = opentelemetry.setSpan(opentelemetry.context.active(), parentSpan)
         span = tracer.startSpan(name, undefined, ctx)
       } else {
         span = tracer.startSpan(name)
