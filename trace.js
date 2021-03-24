@@ -28,7 +28,6 @@ const shimmer = require('shimmer')
 const wrapFn = (mod, name) => {
   shimmer.wrap(mod, name, function(original) {
     return function() {
-      console.log('shimmer running', name)
       const parentSpan = store.get(executionAsyncId)
       let span;
       if (parentSpan) {
