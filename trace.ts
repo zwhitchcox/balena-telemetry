@@ -1,5 +1,5 @@
 import * as opentelemetry from '@opentelemetry/api'
-import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
+// import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
 import {
   BasicTracerProvider,
   ConsoleSpanExporter,
