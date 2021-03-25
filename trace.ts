@@ -1,55 +1,33 @@
-import * as opentelemetry from '@opentelemetry/api'
+import { context, setSpan, trace } from '@opentelemetry/api'
+import { AsyncHooksContextManager } from '@opentelemetry/context-async-hooks';
 // import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
 import {
-  BasicTracerProvider,
   ConsoleSpanExporter,
-  // ConsoleSpanExporter,
   SimpleSpanProcessor
 } from '@opentelemetry/tracing'
-import * as ah from 'async_hooks'
+import { NodeTracerProvider } from '@opentelemetry/node'
 
-// track async ids
-export const store = new Map()
-const ids = new WeakMap()
-ah.createHook({ init(asyncId, type, triggerAsyncId) {
-  if (store.has(triggerAsyncId)) {
-    const span = store.get(triggerAsyncId)
-    store.set(asyncId, store.get(triggerAsyncId))
-    ids.set(span, ids.get(span).concat(asyncId))
-  }
-} }).enable()
 
 // set up telemetry processor
-const provider = new BasicTracerProvider();
+context.setGlobalContextManager(new AsyncHooksContextManager)
+const provider = new NodeTracerProvider();
 provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter));
 provider.register();
-const tracer = opentelemetry.trace.getTracer('async-hooks-tracer');
+const tracer =trace.getTracer('async-hooks-tracer');
 
 // wrap functions
-const {executionAsyncId} = require('async_hooks')
 const fns1 = require('./lib1')
 const fns2 = require('./lib2')
 const shimmer = require('shimmer');
 const wrapFn = (mod, name) => {
   shimmer.wrap(mod, name, function(original) {
     return function(this: any) {
-      const parentSpan = store.get(executionAsyncId())
-      let span;
-      if (parentSpan) {
-        const ctx = opentelemetry
-          .setSpan(opentelemetry.context.active(), parentSpan)
-        span = tracer.startSpan(name, undefined, ctx)
-      } else {
-        span = tracer.startSpan(name)
-        ids.set(span, [])
-        store.set(executionAsyncId(), span)
-      }
-      const result = original.apply(this, arguments)
-      for (const id of ids.get(span) || []) {
-        store.delete(id)
-      }
-      span.end()
-      return result
+      const fnSpan = tracer.startSpan(name)
+      return context.with(setSpan(context.active(), fnSpan), () => {
+        const result =  original.apply(this, arguments)
+        fnSpan.end()
+        return result
+      })
     }
   })
 }
