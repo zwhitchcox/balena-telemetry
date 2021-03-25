@@ -2,6 +2,7 @@ import * as opentelemetry from '@opentelemetry/api'
 import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
 import {
   BasicTracerProvider,
+  ConsoleSpanExporter,
   // ConsoleSpanExporter,
   SimpleSpanProcessor
 } from '@opentelemetry/tracing'
@@ -20,7 +21,7 @@ ah.createHook({ init(asyncId, type, triggerAsyncId) {
 
 // set up telemetry processor
 const provider = new BasicTracerProvider();
-provider.addSpanProcessor(new SimpleSpanProcessor(new ZipkinExporter()));
+provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter));
 provider.register();
 const tracer = opentelemetry.trace.getTracer('async-hooks-tracer');
 
