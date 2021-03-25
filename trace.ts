@@ -1,13 +1,14 @@
 import * as opentelemetry from '@opentelemetry/api'
+import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
 import {
   BasicTracerProvider,
-  ConsoleSpanExporter,
+  // ConsoleSpanExporter,
   SimpleSpanProcessor
 } from '@opentelemetry/tracing'
 import * as ah from 'async_hooks'
 
 // track async ids
-const store = new Map()
+export const store = new Map()
 const ids = new WeakMap()
 ah.createHook({ init(asyncId, type, triggerAsyncId) {
   if (store.has(triggerAsyncId)) {
@@ -19,7 +20,7 @@ ah.createHook({ init(asyncId, type, triggerAsyncId) {
 
 // set up telemetry processor
 const provider = new BasicTracerProvider();
-provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
+provider.addSpanProcessor(new SimpleSpanProcessor(new ZipkinExporter()));
 provider.register();
 const tracer = opentelemetry.trace.getTracer('async-hooks-tracer');
 
